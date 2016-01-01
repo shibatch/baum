@@ -1,0 +1,11 @@
+bin/baumcreateplan benchbig.jpg 0
+bin/baumcreateplan benchbig.jpg 1
+bin/baumcreateplan benchbig.jpg 2
+bin/baumcreateplan benchbig.jpg 3
+bin/baumcreateplan benchbig.jpg 4
+bin/baumcreateplan benchbig.jpg 5
+bin/baumcreateplan benchbig.jpg 6
+bin/baumcreateplan benchbig.jpg 7
+bin/baumcreateplan benchbig.jpg 8
+bin/baumcreateplan benchbig.jpg 9
+cp baum_plan.txt bin
