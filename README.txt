@@ -1,5 +1,5 @@
 
-This software is Written by Naoki Shibata (shibatch.sf.net@gmail.com).
+This software is written by Naoki Shibata (shibatch.sf.net@gmail.com).
 http://ito-lab.naist.jp/~n-sibata/software
 
 BAUM is a software library for drawing and recognize circular barcodes
