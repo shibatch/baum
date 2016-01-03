@@ -14,4 +14,4 @@ clean :
 	(cd src; make clean)
 	rm -f *~ *.o *.a .#* output.png baum_plan.txt bin/baum_plan.txt
 	rm -f markers/*.html
-	rm -r $(GLUI)
+	rm -rf $(GLUI)
