@@ -47,6 +47,7 @@
 uint8_t *mappedBuffer;
 GLuint texName, pboName;
 GLsync syncName = 0;
+int fallBack = 0;
 
 //
 
@@ -183,14 +184,16 @@ void init() {
   glLoadIdentity();
   glOrtho(0, 1, 0, 1, -1, 1);
 
-  glGenBuffers(1, &pboName);
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboName);
-  glBufferStorage(GL_PIXEL_UNPACK_BUFFER, MAPSIZE * MAPSIZE * 3, NULL,
-		  GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT /* | GL_MAP_COHERENT_BIT*/);
-  mappedBuffer = (uint8_t *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, MAPSIZE * MAPSIZE * 3, 
-					     GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT /* | GL_MAP_COHERENT_BIT*/);
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-  
+  if (!fallBack) {
+    glGenBuffers(1, &pboName);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboName);
+    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, MAPSIZE * MAPSIZE * 3, NULL,
+		    GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT /* | GL_MAP_COHERENT_BIT*/);
+    mappedBuffer = (uint8_t *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, MAPSIZE * MAPSIZE * 3, 
+					       GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT /* | GL_MAP_COHERENT_BIT*/);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+  }
+
   glGenTextures(1, &texName);
 
   glBindTexture(GL_TEXTURE_2D, texName);
@@ -228,32 +231,37 @@ void display() {
   glClear( GL_COLOR_BUFFER_BIT );
 
   if (iimg != NULL) {
-    if(syncName != 0) {
-      for(;;) {
+    if (!fallBack) {
+      if(syncName != 0) {
+	for(;;) {
 #if 0
-	GLenum ret = glClientWaitSync( syncName, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
-	if (ret == GL_ALREADY_SIGNALED || ret == GL_CONDITION_SATISFIED) break;
-	sleepMillis(2);
+	  GLenum ret = glClientWaitSync( syncName, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
+	  if (ret == GL_ALREADY_SIGNALED || ret == GL_CONDITION_SATISFIED) break;
+	  sleepMillis(2);
 #else
-	GLint ret;
-	glGetSynciv(syncName, GL_SYNC_STATUS, sizeof(GLint), NULL, &ret);
-	if (ret == GL_SIGNALED) break;
-	sleepMillis(2);
+	  GLint ret;
+	  glGetSynciv(syncName, GL_SYNC_STATUS, sizeof(GLint), NULL, &ret);
+	  if (ret == GL_SIGNALED) break;
+	  sleepMillis(2);
 #endif
+	}
+	glDeleteSync(syncName);
+	syncName = 0;
       }
-      glDeleteSync(syncName);
-      syncName = 0;
-    }
 
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboName);
-    memcpy(mappedBuffer, iimg->imageData, ws * ih);
-    glFlushMappedBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, ws * ih);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboName);
+      memcpy(mappedBuffer, iimg->imageData, ws * ih);
+      glFlushMappedBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, ws * ih);
     
-    glBindTexture(GL_TEXTURE_2D, texName);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, ws3, ih, GL_BGR, GL_UNSIGNED_BYTE, NULL);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+      glBindTexture(GL_TEXTURE_2D, texName);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, ws3, ih, GL_BGR, GL_UNSIGNED_BYTE, NULL);
+      glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
-    syncName = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+      syncName = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    } else {
+      glBindTexture(GL_TEXTURE_2D, texName);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, ws3, ih, GL_BGR, GL_UNSIGNED_BYTE, iimg->imageData);
+    }
 
     glEnable(GL_TEXTURE_2D);
 
@@ -389,7 +397,7 @@ void display() {
 
   //
   
-  { // This is a workaround to reduce CPU usage by GLUI
+  if (!fallBack) { // This is a workaround to reduce CPU usage by GLUI
     static int64_t lastDisplay = 0;
     GLsync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
@@ -405,6 +413,11 @@ void display() {
 
     glDeleteSync(sync);
     
+    lastDisplay = currentTimeMillis();
+  } else {
+    static int64_t lastDisplay = 0;
+    int t2s = 17 - (int)(currentTimeMillis() - lastDisplay);
+    if (lastDisplay > 0 && t2s > 0) sleepMillis(t2s);
     lastDisplay = currentTimeMillis();
   }
 }
@@ -634,33 +647,43 @@ int main(int argc, char **argv) {
   
   //
 
-#ifdef _MSC_VER
-  glGenBuffers = (PFNGLGENBUFFERSARBPROC) wglGetProcAddress("glGenBuffers");
-  glBindBuffer = (PFNGLBINDBUFFERPROC) wglGetProcAddress("glBindBuffer");
-  glBufferData = (PFNGLBUFFERDATAPROC) wglGetProcAddress("glBufferData");
-  glMapBuffer = (PFNGLMAPBUFFERPROC) wglGetProcAddress("glMapBuffer");
-  glUnmapBuffer = (PFNGLUNMAPBUFFERPROC) wglGetProcAddress("glUnmapBuffer");
-  glBufferStorage = (PFNGLBUFFERSTORAGEPROC) wglGetProcAddress("glBufferStorage");
-  glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC) wglGetProcAddress("glMapBufferRange");
-  glFlushMappedBufferRange = (PFNGLFLUSHMAPPEDBUFFERRANGEPROC) wglGetProcAddress("glFlushMappedBufferRange");
-  glFenceSync = (PFNGLFENCESYNCPROC) wglGetProcAddress("glFenceSync");
-  glDeleteSync = (PFNGLDELETESYNCPROC) wglGetProcAddress("glDeleteSync");
-  glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC) wglGetProcAddress("glClientWaitSync");
-  glGetSynciv = (PFNGLGETSYNCIVPROC) wglGetProcAddress("glGetSynciv");
+  float glVersion = 0;
+  sscanf((const char *)glGetString(GL_VERSION), "%f", &glVersion);
 
-  assert(glGenBuffers != NULL);
-  assert(glBindBuffer != NULL);
-  assert(glBufferData != NULL);
-  assert(glMapBuffer != NULL);
-  assert(glUnmapBuffer != NULL);
-  assert(glBufferStorage != NULL);
-  assert(glMapBufferRange != NULL);
-  assert(glFlushMappedBufferRange != NULL);
-  assert(glFenceSync != NULL);
-  assert(glDeleteSync != NULL);
-  assert(glClientWaitSync != NULL);
-  assert(glGetSynciv != NULL);
+  if (glVersion < 4.4) {
+    char mes[100];
+    sprintf(mes, "OpenGL version = %.1f", glVersion);
+    showMessageBox("OpenGL version", mes);
+    fallBack = 1;
+  } else {
+#ifdef _MSC_VER
+    glGenBuffers = (PFNGLGENBUFFERSARBPROC) wglGetProcAddress("glGenBuffers");
+    glBindBuffer = (PFNGLBINDBUFFERPROC) wglGetProcAddress("glBindBuffer");
+    glBufferData = (PFNGLBUFFERDATAPROC) wglGetProcAddress("glBufferData");
+    glMapBuffer = (PFNGLMAPBUFFERPROC) wglGetProcAddress("glMapBuffer");
+    glUnmapBuffer = (PFNGLUNMAPBUFFERPROC) wglGetProcAddress("glUnmapBuffer");
+    glBufferStorage = (PFNGLBUFFERSTORAGEPROC) wglGetProcAddress("glBufferStorage");
+    glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC) wglGetProcAddress("glMapBufferRange");
+    glFlushMappedBufferRange = (PFNGLFLUSHMAPPEDBUFFERRANGEPROC) wglGetProcAddress("glFlushMappedBufferRange");
+    glFenceSync = (PFNGLFENCESYNCPROC) wglGetProcAddress("glFenceSync");
+    glDeleteSync = (PFNGLDELETESYNCPROC) wglGetProcAddress("glDeleteSync");
+    glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC) wglGetProcAddress("glClientWaitSync");
+    glGetSynciv = (PFNGLGETSYNCIVPROC) wglGetProcAddress("glGetSynciv");
+
+    assert(glGenBuffers != NULL);
+    assert(glBindBuffer != NULL);
+    assert(glBufferData != NULL);
+    assert(glMapBuffer != NULL);
+    assert(glUnmapBuffer != NULL);
+    assert(glBufferStorage != NULL);
+    assert(glMapBufferRange != NULL);
+    assert(glFlushMappedBufferRange != NULL);
+    assert(glFenceSync != NULL);
+    assert(glDeleteSync != NULL);
+    assert(glClientWaitSync != NULL);
+    assert(glGetSynciv != NULL);
 #endif
+  }
 
   //
   
