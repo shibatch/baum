@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 BAUM is in public domain. You can use and modify this code for any
 purpose without any obligation.
 
@@ -21,27 +20,3 @@ http://glui.sourceforge.net/ for the details.
 glext.h is in include directory under src folder. glext.h is
 distributed under the MIT License. Please see
 https://www.opengl.org/registry/api/GL/glext.h for the details.
-=======
-BAUM is in public domain. You can use and modify this code for any
-purpose without any obligation.
-
-
-The archive contains the following software. Please refer to the
-distribution license of each software.
-
-OpenCV library is statically linked to the windows binary files under
-bin folder. OpenCV is distributed under the 3-clause BSD
-License. Please see http://opencv.org/license.html for the details.
-
-freeglut library is statically linked to the windows binary files
-under bin folder. freeglut is released under the X-Consortium license.
-Please see http://freeglut.sourceforge.net/ for the details.
-
-GLUI User Interface Library is statically linked to the windows binary
-files under bin folder. GLUI is licensed under LGPL. Please see
-http://glui.sourceforge.net/ for the details.
-
-glext.h is in include directory under src folder. glext.h is
-distributed under the MIT License. Please see
-https://www.opengl.org/registry/api/GL/glext.h for the details.
->>>>>>> 5c2ddec2621eee81df9336b94df6c24e63c4f2ba

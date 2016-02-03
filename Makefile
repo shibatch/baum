@@ -16,13 +16,8 @@ javadoc :
 
 clean :
 	(cd src; make clean)
-<<<<<<< HEAD
 	rm -f *~ *.o *.a .#* output.png baum_plan.txt bin/baum_plan.txt java/libbaumjni.so java/libocvimgio.so java/BaumTestPlan.txt
 	rm -f markers/*.html markers/*.svg
 	rm -f *.svg
 	rm -f java/output.png java/BaumTestPlan.txt
-=======
-	rm -f *~ *.o *.a .#* output.png baum_plan.txt bin/baum_plan.txt
-	rm -f markers/*.html
->>>>>>> 5c2ddec2621eee81df9336b94df6c24e63c4f2ba
 	rm -rf $(GLUI)
