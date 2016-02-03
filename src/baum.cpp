@@ -434,7 +434,7 @@ void baum_createPlan(baum_t *thiz, const char *path, void *resultPtr, size_t buf
     }
   }
 
-  showPlan();
+  //showPlan();
 
   savePlan(path, thiz->device);
 }
@@ -542,7 +542,7 @@ static void drawArc(FILE *fp, double x, double y, int upper, double r0, double r
   fprintf(fp, "%.2f %.2f ", x +   r1, y + C*r1);
   fprintf(fp, "%.2f %.2f ", x +   r1, y       );
 
-  fprintf(fp, "Z\" stroke=none fill=black />\n");
+  fprintf(fp, "Z\" stroke=\"none\" fill=\"black\" />\n");
 }
 
 void baum_fprintMarkerSVG(FILE *fp, int data, double radius, double posx, double posy) {
@@ -555,7 +555,7 @@ void baum_fprintMarkerSVG(FILE *fp, int data, double radius, double posx, double
 
   fprintf(fp, "<!-- BAUM marker pattern No. %d -->\n", data);
   fprintf(fp, "<!-- http://ito-lab.naist.jp/~n-sibata/ -->\n");
-  fprintf(fp, "<svg width=%d height=%d>\n", (int)(radius*2.1+posx), (int)(radius*2.1+posy));
+  fprintf(fp, "<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\">\n", (int)(radius*2.1+posx), (int)(radius*2.1+posy));
 
   drawArc(fp, radius + posx, radius + posy, false, sqrt(HPL+0.0) * BW, sqrt(HPL+1.0) * BW);
   drawArc(fp, radius + posx, radius + posy, true , sqrt(HPL+0.0) * BW, sqrt(HPL+1.0) * BW);

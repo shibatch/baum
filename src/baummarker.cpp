@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stderr, "Usage : %s <data> [<radius>] [<X position>] [<Y position>]\n", argv[0]);
     fprintf(stderr, "This program draws a marker corresponding to data (a number between 0 and 500)\n");
-    fprintf(stderr, "in SVG format, and write it to output.html.\n");
+    fprintf(stderr, "in SVG format, and write it to output.svg and output.html.\n");
     fflush(stderr);
     exit(-1);
   }
@@ -33,7 +33,9 @@ int main(int argc, char **argv) {
   if (argc > 3) posx = atof(argv[2]);
   if (argc > 4) posy = atof(argv[3]);
 
-  FILE *fp = fopen("output.html", "w");
+  FILE *fp;
+
+  fp = fopen("output.html", "w");
   if (fp == NULL) {
     fprintf(stderr, "Could not open output.html.\n");
     exit(-1);
@@ -47,6 +49,18 @@ int main(int argc, char **argv) {
 
   fprintf(fp, "</body>\n");
   fprintf(fp, "</html>\n");
+
+  fclose(fp);
+
+  //
+
+  fp = fopen("output.svg", "w");
+  if (fp == NULL) {
+    fprintf(stderr, "Could not open output.svg.\n");
+    exit(-1);
+  }
+
+  baum_fprintMarkerSVG(fp, data, radius, posx, posy);
 
   fclose(fp);
 

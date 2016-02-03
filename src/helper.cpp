@@ -65,7 +65,7 @@ void String_trim(char *str) {
 
   for(;*src != '\0';src++) {
     *dst++ = *src;
-    if (!isspace(*src)) pterm = src+1;
+    if (!isspace(*src)) pterm = dst;
   }
 
   *pterm = '\0';
@@ -100,6 +100,12 @@ void sleepMillis(int ms) {
 
 #define MAGIC_ARRAYMAPNODE 0xf73130fa
 #define MAGIC_ARRAYMAP 0x8693bd21
+#define LOGNBUCKETS 10
+#define NBUCKETS (1 << LOGNBUCKETS)
+
+static int hash(uint64_t key) {
+  return (key ^ (key >> LOGNBUCKETS) ^ (key >> (LOGNBUCKETS*2)) ^ (key >> (LOGNBUCKETS*3))) & (NBUCKETS-1);
+}
 
 typedef struct ArrayMapNode {
   uint32_t magic;
@@ -109,81 +115,83 @@ typedef struct ArrayMapNode {
 
 typedef struct ArrayMap {
   uint32_t magic;
-  ArrayMapNode *array;
-  int size, capacity;
+  ArrayMapNode *array[NBUCKETS];
+  int size[NBUCKETS], capacity[NBUCKETS], totalSize;
 } ArrayMap;
 
 ArrayMap *initArrayMap() {
   ArrayMap *thiz = (ArrayMap *)calloc(1, sizeof(ArrayMap));
   thiz->magic = MAGIC_ARRAYMAP;
-  thiz->capacity = 8;
-  thiz->array = (ArrayMapNode *)malloc(thiz->capacity * sizeof(ArrayMapNode));
-  thiz->size = 0;
+
+  for(int i=0;i<NBUCKETS;i++) {
+    thiz->capacity[i] = 8;
+    thiz->array[i] = (ArrayMapNode *)malloc(thiz->capacity[i] * sizeof(ArrayMapNode));
+    thiz->size[i] = 0;
+  }
+
+  thiz->totalSize = 0;
   return thiz;
 }
 
 void ArrayMap_dispose(ArrayMap *thiz) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
 
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    thiz->array[i].magic = 0;
+  for(int j=0;j<NBUCKETS;j++) {
+    for(int i=0;i<thiz->size[j];i++) {
+      assert(thiz->array[j][i].magic == MAGIC_ARRAYMAPNODE);
+      thiz->array[j][i].magic = 0;
+    }
+    free(thiz->array[j]);
   }
 
-  free(thiz->array);
   thiz->magic = 0;
   free(thiz);
 }
 
 int ArrayMap_size(ArrayMap *thiz) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
-  return thiz->size;
+  return thiz->totalSize;
 }
 
 uint64_t *ArrayMap_keyArray(ArrayMap *thiz) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
-  uint64_t *a = (uint64_t *)malloc(sizeof(uint64_t) * thiz->size);
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    a[i] = thiz->array[i].key;
+  uint64_t *a = (uint64_t *)malloc(sizeof(uint64_t) * thiz->totalSize);
+  int p = 0;
+  for(int j=0;j<NBUCKETS;j++) {
+    for(int i=0;i<thiz->size[j];i++) {
+      assert(thiz->array[j][i].magic == MAGIC_ARRAYMAPNODE);
+      a[p++] = thiz->array[j][i].key;
+    }
   }
   return a;
 }
 
 void **ArrayMap_valueArray(ArrayMap *thiz) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
-  void **a = (void **)malloc(sizeof(void *) * thiz->size);
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    a[i] = thiz->array[i].value;
+  void **a = (void **)malloc(sizeof(void *) * thiz->totalSize);
+  int p = 0;
+  for(int j=0;j<NBUCKETS;j++) {
+    for(int i=0;i<thiz->size[j];i++) {
+      assert(thiz->array[j][i].magic == MAGIC_ARRAYMAPNODE);
+      a[p++] = thiz->array[j][i].value;
+    }
   }
   return a;
-}
-
-uint64_t ArrayMap_getKey(ArrayMap *thiz, int idx) {
-  assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
-  assert(0 <= idx && idx < thiz->size);
-  assert(thiz->array[idx].magic == MAGIC_ARRAYMAPNODE);
-  return thiz->array[idx].key;
-}
-
-void *ArrayMap_getValue(ArrayMap *thiz, int idx) {
-  assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
-  assert(0 <= idx && idx < thiz->size);
-  assert(thiz->array[idx].magic == MAGIC_ARRAYMAPNODE);
-  return thiz->array[idx].value;
 }
 
 void *ArrayMap_remove(ArrayMap *thiz, uint64_t key) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
 
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    if (thiz->array[i].key == key) {
-      void *old = thiz->array[i].value;
-      thiz->array[i].value = thiz->array[thiz->size-1].value;
-      thiz->array[thiz->size-1].magic = 0;
-      thiz->size--;
+  int h = hash(key);
+  for(int i=0;i<thiz->size[h];i++) {
+    assert(thiz->array[h][i].magic == MAGIC_ARRAYMAPNODE);
+    if (thiz->array[h][i].key == key) {
+      void *old = thiz->array[h][i].value;
+      thiz->array[h][i].key   = thiz->array[h][thiz->size[h]-1].key;
+      thiz->array[h][i].value = thiz->array[h][thiz->size[h]-1].value;
+      thiz->array[h][thiz->size[h]-1].magic = 0;
+      thiz->size[h]--;
+      thiz->totalSize--;
       return old;
     }
   }
@@ -196,24 +204,27 @@ void *ArrayMap_put(ArrayMap *thiz, uint64_t key, void *value) {
 
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
 
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    if (thiz->array[i].key == key) {
-      void *old = thiz->array[i].value;
-      thiz->array[i].value = value;
+  int h = hash(key);
+  for(int i=0;i<thiz->size[h];i++) {
+    assert(thiz->array[h][i].magic == MAGIC_ARRAYMAPNODE);
+    if (thiz->array[h][i].key == key) {
+      void *old = thiz->array[h][i].value;
+      thiz->array[h][i].value = value;
       return old;
     }
   }
 
-  if (thiz->size >= thiz->capacity) {
-    thiz->capacity *= 2;
-    thiz->array = (ArrayMapNode *)realloc(thiz->array, thiz->capacity * sizeof(ArrayMapNode));
+  if (thiz->size[h] >= thiz->capacity[h]) {
+    thiz->capacity[h] *= 2;
+    thiz->array[h] = (ArrayMapNode *)realloc(thiz->array[h], thiz->capacity[h] * sizeof(ArrayMapNode));
   }
 
-  ArrayMapNode *n = &(thiz->array[thiz->size++]);
+  ArrayMapNode *n = &(thiz->array[h][thiz->size[h]++]);
   n->magic = MAGIC_ARRAYMAPNODE;
   n->key = key;
   n->value = value;
+
+  thiz->totalSize++;
 
   return NULL;
 }
@@ -221,10 +232,11 @@ void *ArrayMap_put(ArrayMap *thiz, uint64_t key, void *value) {
 void *ArrayMap_get(ArrayMap *thiz, uint64_t key) {
   assert(thiz != NULL && thiz->magic == MAGIC_ARRAYMAP);
 
-  for(int i=0;i<thiz->size;i++) {
-    assert(thiz->array[i].magic == MAGIC_ARRAYMAPNODE);
-    if (thiz->array[i].key == key) {
-      return thiz->array[i].value;
+  int h = hash(key);
+  for(int i=0;i<thiz->size[h];i++) {
+    assert(thiz->array[h][i].magic == MAGIC_ARRAYMAPNODE);
+    if (thiz->array[h][i].key == key) {
+      return thiz->array[h][i].value;
     }
   }
 

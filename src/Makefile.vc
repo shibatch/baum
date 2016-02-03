@@ -31,27 +31,31 @@ ALLLIBS=$(CVLIBS) $(OPENCLLIBS) $(FREEGLUTLIBS) $(GLUILIBS) $(WINSTDLIBS)
 
 #
 
-all : glbaumui.exe baumcreateplan.exe glbaum.exe baumtest.exe baummarker.exe
+all : exe dll
+
+exe : glbaumui.exe baumcreateplan.exe glbaum.exe baumtest.exe baummarker.exe
+
+dll : baumjni.dll ocvimgio.dll
 
 clean :
-	rm -f *.obj *.lib *.exe *~ *.ilk *.pdb *.suo
+	rm -f *.obj *.lib *.exe *~ *.ilk *.pdb *.suo *.dll
 
 #
 
 glbaum.exe : glbaum.cpp baum.lib
-	$(CC) $(CFLAGS) glbaum.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS) 
+	$(CC) $(CFLAGS) glbaum.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS)
 
 glbaumui.exe : glbaumui.cpp baum.lib
-	$(CC) $(CFLAGS) glbaumui.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS) 
+	$(CC) $(CFLAGS) glbaumui.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS)
 
 baumcreateplan.exe : baumcreateplan.cpp baum.lib
-	$(CC) $(CFLAGS) baumcreateplan.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS) 
+	$(CC) $(CFLAGS) baumcreateplan.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS)
 
 baumtest.exe : baumtest.cpp baum.lib
-	$(CC) $(CFLAGS) baumtest.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS) 
+	$(CC) $(CFLAGS) baumtest.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS)
 
 baummarker.exe : baummarker.cpp baum.lib
-	$(CC) $(CFLAGS) baummarker.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS) 
+	$(CC) $(CFLAGS) baummarker.cpp baum.lib $(ALLLIBS) /link $(LDFLAGS)
 
 #
 
@@ -69,3 +73,13 @@ helper.obj : helper.cpp
 
 poly.obj : poly.cpp
 	$(CC) $(CFLAGS) /c poly.cpp
+
+#
+
+baumjni.dll : baumjni.cpp baum.lib
+	$(CC) $(CFLAGS) /I"$(JAVA_HOME)/include" /I"$(JAVA_HOME)/include/win32" /c baumjni.cpp
+	link /DLL /OUT:baumjni.dll baumjni.obj baum.lib $(ALLLIBS) $(LDFLAGS)
+
+ocvimgio.dll : ocvimgio.cpp
+	$(CC) $(CFLAGS) /I"$(JAVA_HOME)/include" /I"$(JAVA_HOME)/include/win32" /c ocvimgio.cpp
+	link /DLL /OUT:ocvimgio.dll ocvimgio.obj $(ALLLIBS) $(LDFLAGS)

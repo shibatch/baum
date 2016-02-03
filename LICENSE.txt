@@ -6,7 +6,7 @@ The archive contains the following software. Please refer to the
 distribution license of each software.
 
 OpenCV library is statically linked to the windows binary files under
-bin folder. OpenCV is distributed under the 3-clause BSD
+bin and java folder. OpenCV is distributed under the 3-clause BSD
 License. Please see http://opencv.org/license.html for the details.
 
 freeglut library is statically linked to the windows binary files

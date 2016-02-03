@@ -5,6 +5,7 @@
       @echo Creating markers\baum.%%I%%J%%K.html
       @bin\baummarker %%I%%J%%K
       @move output.html markers\baum.%%I%%J%%K.html >nul
+      @move output.svg markers\baum.%%I%%J%%K.svg >nul
     )
   )
 )
