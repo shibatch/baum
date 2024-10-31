@@ -1,6 +1,6 @@
 
 This software is written by Naoki Shibata (shibatch.sf.net@gmail.com).
-http://ito-lab.naist.jp/~n-sibata/software
+https://shibatch.github.io/baum/
 
 BAUM is a software library for drawing and recognize circular barcodes
 that are designed to be relatively tolerant of linear motion blur.
